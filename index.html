@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>What the Weather Actually Means</title>
+<style>
+  :root{
+    --blue:#0A84FF;
+    --glass:rgba(255,255,255,0.14);
+    --glass-line:rgba(255,255,255,0.22);
+    --ink:#ffffff;
+    --ink-2:rgba(255,255,255,0.68);
+    --ink-3:rgba(255,255,255,0.45);
+    --radius:22px;
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    font-family:var(--font);
+    color:var(--ink);
+    min-height:100vh;
+    background:linear-gradient(180deg,#2a4d7a 0%,#3a6ea5 30%,#5a8fc0 62%,#83b0d6 100%);
+    background-attachment:fixed;
+    padding:env(safe-area-inset-top) 16px calc(56px + env(safe-area-inset-bottom));
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:560px;margin:0 auto;}
+
+  /* Hero */
+  .hero{text-align:center;padding:46px 0 30px;}
+  .hero .loc{font-size:16px;font-weight:600;letter-spacing:0.2px;color:var(--ink);opacity:0.95;}
+  .hero .temp{font-size:92px;font-weight:200;letter-spacing:-3px;line-height:1;margin:2px 0 2px;}
+  .hero .cond{font-size:19px;font-weight:500;color:var(--ink-2);}
+  .hero .hl{font-size:16px;font-weight:600;color:var(--ink-2);margin-top:2px;}
+  .hero .note{
+    margin:22px auto 0;max-width:420px;font-size:14.5px;color:var(--ink-2);
+    background:var(--glass);border:0.5px solid var(--glass-line);
+    -webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);
+    border-radius:16px;padding:13px 16px;
+  }
+  .hero .note b{color:var(--ink);font-weight:600;}
+
+  /* Grid */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .card{
+    grid-column:span 1;
+    background:var(--glass);
+    border:0.5px solid var(--glass-line);
+    -webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);
+    border-radius:var(--radius);
+    padding:16px 17px;
+    position:relative;
+    overflow:hidden;
+  }
+  .card.wide{grid-column:span 2;}
+  .card .head{
+    display:flex;align-items:center;gap:7px;
+    font-size:12px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;
+    color:var(--ink-3);margin-bottom:11px;
+  }
+  .card .head .ic{width:15px;height:15px;flex:none;stroke:var(--ink-3);fill:none;stroke-width:1.8;}
+  .card .val{font-size:34px;font-weight:300;letter-spacing:-1px;line-height:1.05;}
+  .card .val .u{font-size:19px;font-weight:400;color:var(--ink-2);letter-spacing:0;}
+  .card .sub{font-size:13.5px;color:var(--ink-2);margin-top:3px;}
+
+  /* Reveal */
+  .reveal-btn{
+    margin-top:14px;width:100%;text-align:left;cursor:pointer;
+    background:rgba(255,255,255,0.10);border:0.5px solid var(--glass-line);
+    border-radius:13px;padding:10px 13px;color:var(--ink);
+    font-family:var(--font);font-size:13.5px;font-weight:500;
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    transition:background .2s ease;
+  }
+  .reveal-btn:hover{background:rgba(255,255,255,0.16);}
+  .reveal-btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
+  .reveal-btn .chev{transition:transform .3s ease;font-size:12px;color:var(--ink-2);}
+  .card.open .reveal-btn .chev{transform:rotate(180deg);}
+  .body{
+    max-height:0;overflow:hidden;
+    transition:max-height .4s cubic-bezier(.4,0,.2,1);
+  }
+  .card.open .body{max-height:1600px;}
+  .body-inner{padding-top:14px;font-size:14.5px;color:var(--ink-2);line-height:1.55;}
+  .body-inner p{margin-bottom:10px;}
+  .body-inner p:last-child{margin-bottom:0;}
+  .body-inner b{color:var(--ink);font-weight:600;}
+  .punch{
+    margin-top:12px;padding:12px 14px;border-radius:12px;
+    background:rgba(255,255,255,0.09);border-left:2.5px solid var(--blue);
+    font-size:13.5px;color:var(--ink);
+  }
+
+  /* Interactive bits */
+  .demo{margin-top:14px;background:rgba(0,0,0,0.14);border-radius:15px;padding:15px;}
+  .demo-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .demo-row .lab{font-size:13px;color:var(--ink-2);font-weight:500;}
+  .demo-row .out{font-size:15px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:3px;
+    background:rgba(255,255,255,0.25);outline:none;margin:2px 0 14px;
+  }
+  input[type=range]:last-child{margin-bottom:0;}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.3);cursor:pointer;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:22px;height:22px;border:none;border-radius:50%;background:#fff;
+    box-shadow:0 1px 4px rgba(0,0,0,0.3);cursor:pointer;
+  }
+  input[type=range]:focus-visible{outline:2px solid var(--blue);outline-offset:4px;}
+  .bigout{
+    text-align:center;font-size:38px;font-weight:300;letter-spacing:-1px;
+    margin:6px 0 2px;font-variant-numeric:tabular-nums;
+  }
+  .bigout .u{font-size:18px;color:var(--ink-2);font-weight:400;}
+  .bigout-lab{text-align:center;font-size:13px;color:var(--ink-2);}
+  .eq{
+    text-align:center;font-size:15px;color:var(--ink);font-weight:500;margin-top:12px;
+    font-variant-numeric:tabular-nums;padding:10px;border-radius:11px;
+    background:rgba(255,255,255,0.10);
+  }
+  .eq .op{color:var(--ink-3);margin:0 4px;}
+  .comfort-bar{height:10px;border-radius:5px;margin:12px 0 6px;
+    background:linear-gradient(90deg,#4fc3f7 0%,#66bb6a 34%,#ffca28 58%,#ff7043 78%,#e53935 100%);
+    position:relative;}
+  .comfort-dot{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;
+    background:#fff;border:2px solid rgba(0,0,0,0.2);transform:translate(-50%,-50%);
+    box-shadow:0 1px 3px rgba(0,0,0,0.3);transition:left .15s ease;}
+  .comfort-ends{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-3);}
+
+  .foot{text-align:center;margin-top:30px;font-size:12.5px;color:var(--ink-3);line-height:1.6;}
+  .foot a{color:var(--ink-2);}
+
+  @media (max-width:400px){
+    .hero .temp{font-size:78px;}
+    .card .val{font-size:30px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none!important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="loc">Anytown</div>
+    <div class="temp">84&deg;</div>
+    <div class="cond">Partly Cloudy</div>
+    <div class="hl">H:88&deg;  L:71&deg;</div>
+    <div class="note">Almost every number a forecast shows you means something different from what it sounds like. <b>Tap any card</b> to see what it actually measures.</div>
+  </div>
+
+  <div class="grid">
+
+    <!-- HUMIDITY -->
+    <div class="card wide" data-card>
+      <div class="head">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 3s6 6.5 6 11a6 6 0 01-12 0c0-4.5 6-11 6-11z"/></svg>
+        Humidity
+      </div>
+      <div class="val">64<span class="u">%</span></div>
+      <div class="sub">Relative humidity, not the amount of water in the air</div>
+      <button class="reveal-btn" data-toggle>What this actually means <span class="chev">&#9662;</span></button>
+      <div class="body"><div class="body-inner">
+        <p>The word people skip is <b>relative</b>. 64% does not mean the air is 64% water. It means the air is holding 64% of the maximum water vapor it <i>could</i> hold at the current temperature.</p>
+        <p>Warm air can hold far more water than cold air, roughly 7% more for every degree Celsius. So the same actual moisture shows a totally different humidity number depending on temperature. This is why humidity climbs at night as the air cools, even though no water was added.</p>
+        <p>Drag the air temperature below. The amount of water in the air stays fixed the whole time. Only the temperature changes.</p>
+        <div class="demo">
+          <div class="demo-row"><span class="lab">Air temperature</span><span class="out" id="rhTempOut">84&deg;F</span></div>
+          <input type="range" id="rhTemp" min="55" max="100" value="84" step="1" aria-label="Air temperature">
+          <div class="bigout"><span id="rhOut">64</span><span class="u">%</span></div>
+          <div class="bigout-lab">relative humidity, with water content held constant</div>
+        </div>
+        <div class="punch">Cool that same air to its <b>dew point</b> and humidity hits 100% with zero new water. The moisture never moved. The thermometer did all the work.</div>
+      </div></div>
+    </div>
+
+    <!-- DEW POINT -->
+    <div class="card wide" data-card>
+      <div class="head">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 3s6 6.5 6 11a6 6 0 01-12 0c0-4.5 6-11 6-11z"/><path d="M9 14a3 3 0 003 3"/></svg>
+        Dew Point
+      </div>
+      <div class="val">70<span class="u">&deg;F</span></div>
+      <div class="sub">The honest moisture number the pros actually watch</div>
+      <button class="reveal-btn" data-toggle>What this actually means <span class="chev">&#9662;</span></button>
+      <div class="body"><div class="body-inner">
+        <p>Dew point is the temperature the air would need to cool to before water starts condensing out. Unlike relative humidity, it does not swing around with temperature, so it is a straight readout of how much water is actually in the air.</p>
+        <p>This is why meteorologists trust it over humidity for judging how muggy it feels. A 90&deg;F day at 40% humidity and a 75&deg;F day at 70% humidity can carry the same dew point and feel equally sticky.</p>
+        <div class="demo">
+          <div class="demo-row"><span class="lab">Dew point</span><span class="out" id="dpOut">70&deg;F</span></div>
+          <input type="range" id="dp" min="35" max="80" value="70" step="1" aria-label="Dew point">
+          <div class="comfort-bar"><div class="comfort-dot" id="dpDot"></div></div>
+          <div class="comfort-ends"><span>Dry</span><span>Pleasant</span><span>Sticky</span><span>Oppressive</span></div>
+          <div class="bigout-lab" id="dpLabel" style="margin-top:10px;font-weight:600;color:var(--ink);">Uncomfortable and humid</div>
+        </div>
+        <div class="punch">Rule of thumb: dew point in the <b>50s</b> feels fine, <b>60s</b> gets noticeably sticky, <b>70+</b> is the air that makes you shower twice. Humidity percentage tells you almost none of this on its own.</div>
+      </div></div>
+    </div>
+
+    <!-- CHANCE OF RAIN -->
+    <div class="card wide" data-card>
+      <div class="head">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M6 15a4 4 0 010-8 5 5 0 019.5-1.5A3.5 3.5 0 0117 15z"/><path d="M8 18l-1 2M12 18l-1 2M16 18l-1 2"/></svg>
+        Chance of Rain
+      </div>
+      <div class="val">40<span class="u">%</span></div>
+      <div class="sub">Not "40% chance it rains on you." It is a multiplication.</div>
+      <button class="reveal-btn" data-toggle>What this actually means <span class="chev">&#9662;</span></button>
+      <div class="body"><div class="body-inner">
+        <p>This is the most misread number in the whole forecast. The official name is <b>Probability of Precipitation</b>, and the Weather Service defines it as two things multiplied together:</p>
+        <p><b>PoP = Confidence &times; Coverage</b>. Confidence is how sure the forecaster is that rain happens somewhere in the area. Coverage is the fraction of the area expected to actually get wet if it does.</p>
+        <p>So a 40% chance can come from very different situations. Drag both sliders and watch how they land on the same number.</p>
+        <div class="demo">
+          <div class="demo-row"><span class="lab">Confidence rain occurs</span><span class="out" id="popCOut">80%</span></div>
+          <input type="range" id="popC" min="0" max="100" value="80" step="5" aria-label="Confidence">
+          <div class="demo-row"><span class="lab">Area that gets wet</span><span class="out" id="popAOut">50%</span></div>
+          <input type="range" id="popA" min="0" max="100" value="50" step="5" aria-label="Area coverage">
+          <div class="eq"><span id="eqC">80%</span><span class="op">&times;</span><span id="eqA">50%</span><span class="op">=</span><span id="popResult" style="color:var(--blue);font-weight:700;">40%</span></div>
+        </div>
+        <div class="punch">"40%" might mean a forecaster is <b>100% sure</b> it rains, just only over 40% of the map. Or <b>40% sure</b> it rains at all, but everywhere if it does. Same headline number, completely different day. And "measurable" only means at least 0.01 inch, so a drizzle counts.</div>
+      </div></div>
+    </div>
+
+    <!-- FEELS LIKE -->
+    <div class="card wide" data-card>
+      <div class="head">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 3v10M12 13a3 3 0 100 6 3 3 0 000-6z"/><circle cx="12" cy="16" r="1.2" fill="currentColor" stroke="none"/></svg>
+        Feels Like
+      </div>
+      <div class="val">92<span class="u">&deg;F</span></div>
+      <div class="sub">Your body's cooling math, not the actual air temperature</div>
+      <button class="reveal-btn" data-toggle>What this actually means <span class="chev">&#9662;</span></button>
+      <div class="body"><div class="body-inner">
+        <p>The thermometer reads 84&deg;F, but "feels like" says 92&deg;F. Nothing is wrong with either. Feels-like is a model of how well your body can shed heat, not a reading of the air.</p>
+        <p>In heat, your main cooling tool is sweat evaporating off your skin. When humidity is high, the air is already near saturated, so sweat evaporates slowly and you cannot dump heat. The <b>heat index</b> converts that stalled cooling into an equivalent dry temperature.</p>
+        <p>In cold, the same idea runs backward as <b>wind chill</b>: wind strips the thin warm layer off your skin and hauls heat away faster, so it feels colder than the air.</p>
+        <div class="demo">
+          <div class="demo-row"><span class="lab">Air temperature</span><span class="out" id="hiTempOut">84&deg;F</span></div>
+          <input type="range" id="hiTemp" min="70" max="110" value="84" step="1" aria-label="Air temperature">
+          <div class="demo-row"><span class="lab">Relative humidity</span><span class="out" id="hiRhOut">64%</span></div>
+          <input type="range" id="hiRh" min="0" max="100" value="64" step="1" aria-label="Relative humidity">
+          <div class="bigout"><span id="hiOut">92</span><span class="u">&deg;F</span></div>
+          <div class="bigout-lab">feels like</div>
+        </div>
+        <div class="punch">Two 84&deg;F days can feel 15&deg; apart. The air temperature is the same. Your evaporation rate is not.</div>
+      </div></div>
+    </div>
+
+    <!-- PRESSURE -->
+    <div class="card" data-card>
+      <div class="head">
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 12l4-3"/></svg>
+        Pressure
+      </div>
+      <div class="val">29.9<span class="u">in</span></div>
+      <div class="sub">Steady</div>
+      <button class="reveal-btn" data-toggle>Meaning <span class="chev">&#9662;</span></button>
+      <div class="body"><div class="body-inner">
+        <p>The absolute value barely matters day to day. What forecasters watch is the <b>direction it is moving</b>. Falling pressure means a low-pressure system is moving in, which pulls air upward, cools it, and builds clouds and storms.</p>
+        <p>Rising pressure pushes air down and dries it out, which is why "the barometer is climbing" is old-school shorthand for clearing skies.</p>
+        <div class="punch">Around 29.92 in is average. The trend arrow is the real forecast, not the number.</div>
+      </div></div>
+    </div>
+
+    <!-- UV -->
+    <div class="card" data-card>
+      <div class="head">
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>
+        UV Index
+      </div>
+      <div class="val">7</div>
+      <div class="sub">High</div>
+      <button class="reveal-btn" data-toggle>Meaning <span class="chev">&#9662;</span></button>
+      <div class="body"><div class="body-inner">
+        <p>Not a temperature and not tied to how hot it feels. It is a scale of how fast UV radiation damages skin, running 0 to 11+. A cool, clear, high-altitude day can carry a brutal UV number.</p>
+        <p>It is roughly linear: a 7 burns you about twice as fast as a 3.5. Peak values land near solar noon, not in the afternoon heat.</p>
+        <div class="punch">The value tracks the sun's angle and altitude, not the thermometer. Snow and water bounce it back up at you too.</div>
+      </div></div>
+    </div>
+
+    <!-- WIND -->
+    <div class="card" data-card>
+      <div class="head">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M3 8h11a2.5 2.5 0 100-5M3 12h15a2.5 2.5 0 110 5M3 16h9a2 2 0 110 4"/></svg>
+        Wind
+      </div>
+      <div class="val">9<span class="u">mph</span></div>
+      <div class="sub">Gusts 22</div>
+      <button class="reveal-btn" data-toggle>Meaning <span class="chev">&#9662;</span></button>
+      <div class="body"><div class="body-inner">
+        <p>The main number is the <b>sustained</b> wind, a roughly two-minute average. The gust is the short peak, and the gap between them is what actually matters. A steady 9 with gusts to 22 is a lumpy, unpredictable day even though the average sounds calm.</p>
+        <div class="punch">The average tells you the trend. The gust tells you whether your umbrella survives.</div>
+      </div></div>
+    </div>
+
+    <!-- VISIBILITY -->
+    <div class="card" data-card>
+      <div class="head">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.5"/></svg>
+        Visibility
+      </div>
+      <div class="val">10<span class="u">mi</span></div>
+      <button class="reveal-btn" data-toggle>Meaning <span class="chev">&#9662;</span></button>
+      <div class="body"><div class="body-inner">
+        <p>Ten miles is usually the ceiling the instrument reports, not a promise you can see ten miles. It measures how far light gets through the air before haze, fog, dust, or rain scatters it.</p>
+        <div class="punch">"10 mi" often just means "clear enough that we stopped counting."</div>
+      </div></div>
+    </div>
+
+    <!-- FORECAST DECAY -->
+    <div class="card wide" data-card>
+      <div class="head">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M3 18l5-6 4 3 5-8"/><path d="M17 7h3v3"/></svg>
+        The 10-Day Forecast
+      </div>
+      <div class="val">Day 8<span class="u">?</span></div>
+      <div class="sub">Confidence does not last as long as the row of icons suggests</div>
+      <button class="reveal-btn" data-toggle>What this actually means <span class="chev">&#9662;</span></button>
+      <div class="body"><div class="body-inner">
+        <p>Those ten cheerful icons imply equal certainty across the row. They are not equal. A day-one forecast is right around 95% of the time. By day five it drops toward the high 80s, and past about a week it is closer to an educated guess than a forecast.</p>
+        <p>The atmosphere is chaotic, so tiny errors in today's measurements grow fast. That is the real reason the 10-day keeps changing every time you check it.</p>
+        <div class="punch">Trust roughly the first five icons. Treat the back half as a rough outlook that will quietly rewrite itself before it arrives.</div>
+      </div></div>
+    </div>
+
+  </div>
+
+  <div class="foot">
+    A weather explainer. Values shown are illustrative.<br>
+    Heat index uses the NWS Rothfusz regression. Dew point uses the Magnus formula.
+  </div>
+
+</div>
+
+<script>
+(function(){
+  // Expand / collapse
+  document.querySelectorAll('[data-card]').forEach(function(card){
+    var btn = card.querySelector('[data-toggle]');
+    btn.addEventListener('click', function(){
+      card.classList.toggle('open');
+      btn.setAttribute('aria-expanded', card.classList.contains('open'));
+    });
+  });
+
+  var f1 = function(n){ return Math.round(n); };
+
+  // Saturation vapor pressure (hPa), Tetens, T in Celsius
+  function es(Tc){ return 6.112 * Math.exp(17.67*Tc/(Tc+243.5)); }
+  function fToC(f){ return (f-32)*5/9; }
+
+  // --- Humidity demo: fixed water content (dew point ~70F), vary air temp ---
+  var rhTemp = document.getElementById('rhTemp'),
+      rhTempOut = document.getElementById('rhTempOut'),
+      rhOut = document.getElementById('rhOut');
+  var fixedDewC = fToC(70);           // fixed moisture
+  var actualVP = es(fixedDewC);       // constant vapor pressure
+  function updRH(){
+    var Tc = fToC(+rhTemp.value);
+    var rh = Math.min(100, actualVP/es(Tc)*100);
+    rhTempOut.innerHTML = rhTemp.value + '&deg;F';
+    rhOut.textContent = f1(rh);
+  }
+  rhTemp.addEventListener('input', updRH); updRH();
+
+  // --- Dew point comfort ---
+  var dp = document.getElementById('dp'),
+      dpOut = document.getElementById('dpOut'),
+      dpDot = document.getElementById('dpDot'),
+      dpLabel = document.getElementById('dpLabel');
+  function updDP(){
+    var v = +dp.value;
+    dpOut.innerHTML = v + '&deg;F';
+    var pct = (v-35)/(80-35)*100;
+    dpDot.style.left = pct + '%';
+    var lab;
+    if(v<50) lab='Dry and comfortable';
+    else if(v<56) lab='Pleasant';
+    else if(v<61) lab='Comfortable, slightly humid';
+    else if(v<66) lab='Getting sticky';
+    else if(v<71) lab='Uncomfortable and humid';
+    else if(v<76) lab='Oppressive';
+    else lab='Miserable, tropical air';
+    dpLabel.textContent = lab;
+  }
+  dp.addEventListener('input', updDP); updDP();
+
+  // --- PoP ---
+  var popC = document.getElementById('popC'),
+      popA = document.getElementById('popA'),
+      popCOut = document.getElementById('popCOut'),
+      popAOut = document.getElementById('popAOut'),
+      eqC = document.getElementById('eqC'),
+      eqA = document.getElementById('eqA'),
+      popResult = document.getElementById('popResult');
+  function updPop(){
+    var c=+popC.value, a=+popA.value;
+    popCOut.textContent=c+'%'; popAOut.textContent=a+'%';
+    eqC.textContent=c+'%'; eqA.textContent=a+'%';
+    popResult.textContent=Math.round(c*a/100)+'%';
+  }
+  popC.addEventListener('input',updPop);
+  popA.addEventListener('input',updPop); updPop();
+
+  // --- Heat index (NWS Rothfusz) ---
+  var hiTemp=document.getElementById('hiTemp'),
+      hiRh=document.getElementById('hiRh'),
+      hiTempOut=document.getElementById('hiTempOut'),
+      hiRhOut=document.getElementById('hiRhOut'),
+      hiOut=document.getElementById('hiOut');
+  function heatIndex(T,R){
+    // simple estimate first
+    var hi = 0.5*(T+61.0+((T-68.0)*1.2)+(R*0.094));
+    if(((hi+T)/2) < 80) return hi;
+    hi = -42.379 + 2.04901523*T + 10.14333127*R
+       - 0.22475541*T*R - 0.00683783*T*T - 0.05481717*R*R
+       + 0.00122874*T*T*R + 0.00085282*T*R*R - 0.00000199*T*T*R*R;
+    if(R<13 && T>=80 && T<=112) hi -= ((13-R)/4)*Math.sqrt((17-Math.abs(T-95))/17);
+    else if(R>85 && T>=80 && T<=87) hi += ((R-85)/10)*((87-T)/5);
+    return hi;
+  }
+  function updHI(){
+    var T=+hiTemp.value, R=+hiRh.value;
+    hiTempOut.innerHTML=T+'&deg;F'; hiRhOut.textContent=R+'%';
+    hiOut.textContent=f1(heatIndex(T,R));
+  }
+  hiTemp.addEventListener('input',updHI);
+  hiRh.addEventListener('input',updHI); updHI();
+})();
+</script>
+</body>
+</html>
